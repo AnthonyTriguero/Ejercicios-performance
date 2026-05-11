@@ -39,5 +39,11 @@ performance-challenge/ejercicio-1/reports/
 # Misc
 docx_extracted/
 contexto/
+contexto
+.claude/
 *.txt
-!performance-challenge/ejercicio-2/InformeResultados.txt
+Ejercicio Performance.docx
+performance-challenge/puntos-clave.md
+performance-challenge/run-test.ps1
+ejercicios.txt
+guia-readme.txt
