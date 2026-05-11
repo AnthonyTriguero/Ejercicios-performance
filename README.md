@@ -6,28 +6,40 @@ Solución al challenge de automatización QA que cubre pruebas de rendimiento, A
 
 ```
 .
-├── performance-challenge/      # Ejercicio de Performance con K6
-│   ├── ejercicio-1/            # Script de carga + datos + reportes
+├── performance-challenge/
+│   ├── ejercicio-1/            # K6 - Script de carga + datos
 │   └── ejercicio-2/            # Informe de resultados (InformeResultados.docx)
-├── ejercicio-api-karate/       # Pruebas de API con Karate Framework
-└── ejercicio-e2e/              # Pruebas E2E con SerenityBDD + ScreenPlay
+├── ejercicio-api-karate/       # Karate Framework - Pruebas de API
+└── ejercicio-e2e/              # SerenityBDD + ScreenPlay - Pruebas E2E
 ```
-
-## Requisitos Previos
-
-| Herramienta | Versión |
-|-------------|---------|
-| JDK | 17 |
-| Gradle | 7.6.1 (wrapper incluido) |
-| Chrome | 114+ |
-| ChromeDriver | Compatible con Chrome instalado |
-| K6 | Última estable |
 
 ---
 
-## Ejercicio Performance (K6)
+## Requisitos Previos
 
-**Objetivo:** Prueba de carga sobre el endpoint `POST /auth/login` de FakeStore API, apuntando a 20 TPS sostenidos.
+| Herramienta | Versión | Descarga |
+|-------------|---------|---------|
+| JDK | 17 | https://adoptium.net |
+| Chrome | 114+ | https://www.google.com/chrome |
+| ChromeDriver | Igual a Chrome | https://googlechromelabs.github.io/chrome-for-testing |
+| K6 | Última estable | https://k6.io/docs/get-started/installation |
+
+> Gradle no requiere instalación — cada proyecto incluye el Gradle Wrapper (`gradlew` / `gradlew.bat`).
+
+---
+
+## Clonar el repositorio
+
+```bash
+git clone https://github.com/AnthonyTriguero/Ejercicios-performance.git
+cd Ejercicios-performance
+```
+
+---
+
+## Ejercicio 1 — Performance (K6)
+
+**Objetivo:** Prueba de carga sobre `POST https://fakestoreapi.com/auth/login` apuntando a 20 TPS sostenidos.
 
 ### Ejecución
 
@@ -38,92 +50,94 @@ k6 run scripts/login-load-test.js
 
 ### Umbrales configurados
 
-- **p(95) < 1500 ms**
-- **Tasa de errores < 3%**
-- **TPS objetivo: 20**
+| Métrica | Umbral |
+|---------|--------|
+| Percentil 95 de respuesta | < 1500 ms |
+| Tasa de errores | < 3% |
+| TPS objetivo | 20 |
 
-### Reportes
+### Resultados
 
-Los reportes HTML generados por K6 quedan en `performance-challenge/ejercicio-1/reports/`.  
-El informe de análisis completo se encuentra en `performance-challenge/ejercicio-2/InformeResultados.docx`.
+El informe de análisis con gráficas y conclusiones está en:
+```
+performance-challenge/ejercicio-2/InformeResultados.docx
+```
 
 ---
 
-## Ejercicio API — Karate Framework
+## Ejercicio 2 — API (Karate Framework)
 
 **Objetivo:** Validar los endpoints de autenticación y productos de FakeStore API.
+
+**API base:** `https://fakestoreapi.com`
 
 ### Cobertura de pruebas
 
 | Feature | Escenarios |
 |---------|-----------|
-| `auth/login.feature` | Login exitoso, Login con múltiples usuarios (CSV), Credenciales inválidas, Validación de token |
-| `products/products.feature` | Obtener todos, Por ID, Por categoría (Outline), Con límite, Ordenado descendente |
+| `auth/login.feature` | Login exitoso, múltiples usuarios desde CSV, credenciales inválidas, validación de token |
+| `products/products.feature` | Obtener todos, por ID, por categoría (Outline), con límite, ordenado descendente |
 
 ### Ejecución
 
+**Windows:**
+```bash
+cd ejercicio-api-karate
+.\gradlew.bat test
+```
+
+**Linux/Mac:**
 ```bash
 cd ejercicio-api-karate
 ./gradlew test
 ```
 
-### Reportes
+### Reportes generados
 
 ```
-build/reports/tests/test/index.html    # Reporte JUnit/Karate
-target/cucumber-reports/               # Reporte Cucumber JSON
+build/reports/tests/test/index.html   # Reporte HTML Karate/JUnit
+target/cucumber-reports/              # JSON Cucumber
 ```
 
 ---
 
-## Ejercicio E2E — SerenityBDD + ScreenPlay
+## Ejercicio 3 — E2E (SerenityBDD + ScreenPlay)
 
 **Objetivo:** Pruebas end-to-end sobre [SauceDemo](https://www.saucedemo.com) usando el patrón ScreenPlay.
+
+### Cobertura de pruebas
+
+| Escenario | Datos | Resultado esperado |
+|-----------|-------|-------------------|
+| Login exitoso — `standard_user` | CSV | Redirige a inventario |
+| Login exitoso — `performance_glitch_user` | CSV | Redirige a inventario |
+| Login fallido — `locked_out_user` | Hardcoded | Muestra mensaje de error |
+| Login con credenciales vacías | Hardcoded | Muestra mensaje de error |
 
 ### Arquitectura ScreenPlay
 
 ```
 src/test/java/
-├── ui/                     # Page Objects (Targets de Serenity)
-│   ├── LoginPage.java
-│   └── InventoryPage.java
-├── tasks/                  # Tareas ScreenPlay
-│   ├── Login.java
-│   └── Logout.java
-├── questions/              # Questions ScreenPlay
-│   ├── IsOnInventoryPage.java
-│   └── IsErrorDisplayed.java
-├── stepdefs/               # Step Definitions Cucumber
-│   └── LoginStepDefinitions.java
-├── runner/                 # Runner JUnit 4
-│   └── CucumberTestRunner.java
-└── support/                # Configuración custom driver
-    └── CustomChromeDriverSource.java
+├── ui/          # Targets (LoginPage, InventoryPage)
+├── tasks/       # Tareas (Login, Logout)
+├── questions/   # Questions (IsOnInventoryPage, IsErrorDisplayed)
+├── stepdefs/    # Step Definitions Cucumber
+├── runner/      # CucumberTestRunner (JUnit 4)
+└── support/     # CustomChromeDriverSource
 ```
-
-### Cobertura de pruebas
-
-| Escenario | Resultado esperado |
-|-----------|-------------------|
-| Login exitoso — `standard_user` | Redirige a inventario |
-| Login exitoso — `performance_glitch_user` | Redirige a inventario |
-| Login fallido — `locked_out_user` | Muestra mensaje de error |
-| Login con credenciales vacías | Muestra mensaje de error |
-
-Los datos de usuarios se parametrizan desde `src/test/resources/data/users.csv`.
 
 ### Ejecución
 
 **Windows:**
 ```bash
 cd ejercicio-e2e
-.\gradlew.bat clean test -Dwebdriver.chrome.driver=<ruta>\chromedriver.exe
+.\gradlew.bat clean test -Dwebdriver.chrome.driver=C:\ruta\chromedriver.exe
 ```
 
 **Linux/Mac:**
 ```bash
 cd ejercicio-e2e
-./gradlew clean test -Dwebdriver.chrome.driver=<ruta>/chromedriver
+./gradlew clean test -Dwebdriver.chrome.driver=/ruta/chromedriver
 ```
 
 > Si ChromeDriver está en el PATH del sistema, el parámetro `-Dwebdriver.chrome.driver` puede omitirse.
@@ -131,19 +145,19 @@ cd ejercicio-e2e
 ### Reportes generados automáticamente
 
 ```
-target/site/serenity/index.html          # Reporte Serenity HTML
-target/cucumber-reports/Cucumber.html    # Reporte Cucumber HTML
-target/cucumber-reports/Cucumber.json    # Reporte Cucumber JSON
+target/site/serenity/index.html       # Reporte Serenity HTML completo
+target/cucumber-reports/Cucumber.html # Reporte Cucumber HTML
+target/cucumber-reports/Cucumber.json # Reporte Cucumber JSON
 ```
 
 ---
 
 ## Datos de prueba
 
-Todos los ejercicios utilizan datos parametrizados:
+Todos los ejercicios usan datos parametrizados desde archivos CSV:
 
-| Proyecto | Archivo | Formato |
-|---------|---------|---------|
-| API Karate | `src/test/resources/data/users.csv` | CSV |
-| E2E SerenityBDD | `src/test/resources/data/users.csv` | CSV |
-| K6 Performance | `ejercicio-1/data/users.csv` | CSV |
+| Proyecto | Archivo |
+|---------|---------|
+| K6 Performance | `performance-challenge/ejercicio-1/data/users.csv` |
+| API Karate | `ejercicio-api-karate/src/test/resources/data/users.csv` |
+| E2E SerenityBDD | `ejercicio-e2e/src/test/resources/data/users.csv` |
