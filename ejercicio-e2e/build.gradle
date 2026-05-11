@@ -1,0 +1,72 @@
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'net.serenity-bdd:serenity-core:3.6.12'
+        classpath 'net.serenity-bdd:serenity-cucumber:3.6.12'
+        classpath 'net.masterthought:cucumber-reporting:5.7.5'
+    }
+}
+
+plugins {
+    id 'java'
+}
+
+group = 'com.challenge.e2e'
+version = '1.0.0'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testImplementation 'net.serenity-bdd:serenity-core:3.6.12'
+    testImplementation 'net.serenity-bdd:serenity-cucumber:3.6.12'
+    testImplementation 'net.serenity-bdd:serenity-screenplay:3.6.12'
+    testImplementation 'net.serenity-bdd:serenity-screenplay-webdriver:3.6.12'
+    testImplementation 'io.cucumber:cucumber-java:7.12.1'
+    testImplementation 'io.cucumber:cucumber-junit:7.12.1'
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'net.masterthought:cucumber-reporting:5.7.5'
+    testImplementation 'io.github.bonigarcia:webdrivermanager:5.6.3'
+}
+
+task cleanSerenityOutput(type: Delete) {
+    group = 'Build'
+    description = 'Cleans Serenity report output directory'
+    delete "${projectDir}/target"
+}
+
+task generateSerenityReport {
+    group = 'Reporting'
+    description = 'Generates the Serenity HTML aggregate report'
+    doLast {
+        def outputDir = new File("${projectDir}/target/site/serenity")
+        net.thucydides.core.reports.html.HtmlAggregateStoryReporter reporter =
+            new net.thucydides.core.reports.html.HtmlAggregateStoryReporter("Ejercicio E2E - SauceDemo")
+        reporter.setSourceDirectory(outputDir)
+        reporter.setOutputDirectory(outputDir)
+        reporter.generateReportsForTestResultsFrom(outputDir)
+        println "Serenity report: ${projectDir}/target/site/serenity/index.html"
+        println "Cucumber report: ${projectDir}/target/cucumber-reports/Cucumber.html"
+    }
+}
+
+clean.dependsOn cleanSerenityOutput
+
+test {
+    outputs.upToDateWhen { false }
+    testLogging {
+        events 'passed', 'failed', 'skipped'
+    }
+    systemProperty 'webdriver.chrome.driver', System.getProperty('webdriver.chrome.driver', '')
+    finalizedBy generateSerenityReport
+}
+
+gradle.startParameter.continueOnFailure = true

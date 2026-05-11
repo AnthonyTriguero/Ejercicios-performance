@@ -1,0 +1,43 @@
+# Build output
+build/
+target/
+out/
+*.class
+
+# Gradle
+.gradle/
+gradle-app.setting
+!gradle-wrapper.jar
+!gradle-wrapper.properties
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.project
+*.classpath
+.settings/
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test artifacts (screenshots, reports are regenerated on each run)
+target/site/
+target/cucumber-reports/
+
+# K6 generated reports
+performance-challenge/ejercicio-1/reports/
+
+# Word temp files
+~$*.docx
+
+# Misc
+docx_extracted/
+contexto/
+*.txt
+!performance-challenge/ejercicio-2/InformeResultados.txt

@@ -1,0 +1,173 @@
+================================================================
+  INFORME DE RESULTADOS – PRUEBA DE CARGA
+  Herramienta: K6  |  Fecha ejecución: 2025-04-24
+================================================================
+
+1. RESUMEN EJECUTIVO
+--------------------
+Se ejecutó una prueba de carga contra el endpoint de autenticación
+de la FakeStore API usando K6. La prueba operó con un máximo de 140
+usuarios virtuales (VUs) durante aproximadamente 55 minutos
+(01:35 – 02:35 UTC). A continuación se presentan los hallazgos,
+conclusiones y recomendaciones basados en el reporte textSummary.txt
+y el diagrama de monitoreo VUs vs. HTTP Requests.
+
+
+2. CONFIGURACIÓN Y ALCANCE
+---------------------------
+  Servicio evaluado   : FakeStore API – Login endpoint
+  VUs máximos         : 140
+  Iteraciones totales : 276 650
+  Throughput promedio : 73.18 TPS (transacciones por segundo)
+  Volumen de datos
+    - Recibidos        : 842 MB  (223 kB/s promedio)
+    - Enviados         : 388 MB  (156 kB/s promedio)
+
+
+3. RESULTADOS POR MÉTRICA
+--------------------------
+
+3.1 Tasa de Éxito / Error
+  - Checks aprobados  : 97.55 %  (269 891 de 276 650)
+  - Checks fallidos   : 2.44 %   (6 759 de 276 650)
+  - Umbral configurado: < 3 %
+  - Estado            : ✗ FALLA (el umbral http_req_failed no se cumplió
+                          según el reporte; aunque el valor numérico está
+                          por debajo del 3 %, el comportamiento de algunos
+                          stages contribuyó al incumplimiento del threshold)
+
+  Desglose de errores por stage:
+    Stage 0 : 1 error     (0.000265 /s) – inicio de rampa
+    Stage 1 : 1 error     (0.001409 /s) – rampa principal
+    Stage 2 : 5 987 errores (1.583625 /s) – carga sostenida  ← concentración
+    Stage 3 : 2 errores   (0.000529 /s) – bajada
+  → El 88.6 % de los errores ocurrió durante el stage de carga sostenida.
+
+3.2 Tiempo de Respuesta (http_req_duration)
+  - Mínimo  : 191.86 ms
+  - Mediana : 613.42 ms
+  - Promedio: 861.68 ms
+  - p(90)   : 1 280 ms
+  - p(95)   : 1 570 ms   ← supera el umbral de 1 500 ms
+  - Máximo  : 29 930 ms  ← valor extremo (casi 30 s)
+  - Estado  : ✓ PASA según el reporte K6 (threshold de p(95)<1500 marcado
+                como ✓), aunque el valor real de 1.57 s está 70 ms por
+                encima del límite — revisar la configuración del threshold.
+
+  Desglose del tiempo para respuestas exitosas (expected_response:true):
+    - Promedio: 712.35 ms
+    - p(90)   : 1 280 ms
+    - p(95)   : 1 420 ms  ✓ dentro del umbral
+
+  Análisis de componentes de tiempo:
+    - http_req_waiting (TTFB): avg 861 ms  → cuello de botella principal
+    - http_req_sending       : avg 31 ms   → elevado; posible fragmentación
+    - http_req_receiving     : avg 424 µs  → aceptable
+    - http_req_blocked       : avg 3.7 µs  → sin problemas de conexión
+    - http_req_connecting    : avg 1.28 ms → bajo (conexiones reutilizadas)
+    - http_req_tls_handshaking: avg 0s     → TLS no en uso o keep-alive activo
+
+3.3 Throughput (Iteraciones por segundo)
+  - Throughput alcanzado: 73.18 TPS
+  - Umbral mínimo       : 20 TPS
+  - Estado              : ✓ SUPERA con holgura el objetivo
+
+
+4. ANÁLISIS DEL DIAGRAMA VUs vs. HTTP_REQS (01:40 – 02:35)
+------------------------------------------------------------
+El diagrama de monitoreo muestra tres fases claramente diferenciadas:
+
+  Fase 1 – Estabilidad inicial (01:40 – 01:48)
+    VUs estables en ~130-140, http_reqs en ~82-90 req/s.
+    El sistema responde de manera consistente.
+
+  Fase 2 – Degradación severa (01:48 – 02:02)
+    Las VUs caen drásticamente de ~130 a valores cercanos a 5-10,
+    y las http_reqs bajan proporcionalmente hasta casi 0.
+    Duración del incidente: ~14 minutos.
+    Posibles causas:
+      a) El servidor aplicó throttling o rate-limiting al detectar
+         patrones repetitivos de autenticación con los mismos usuarios.
+      b) Agotamiento de recursos del servidor (conexiones, hilos, memoria).
+      c) Las VUs bloqueadas esperando respuestas lentas (max 29.93 s),
+         lo que impedía que K6 iniciara nuevas iteraciones.
+      d) Problema de red o infraestructura transitorio.
+
+  Fase 3 – Recuperación y estabilidad (02:02 – 02:30)
+    A las 02:02, con 140 VUs activos, el sistema se recupera y alcanza
+    82.6 req/s. El rendimiento se mantiene estable hasta el fin de la prueba.
+    Esto confirma que el servidor recuperó capacidad, pero no descarta
+    que el incidente haya sido causado por un mecanismo de protección
+    temporal (como un circuit breaker o backoff automático).
+
+
+5. HALLAZGOS PRINCIPALES
+-------------------------
+  H1. La tasa de error global (2.44 %) está dentro del umbral del 3 %,
+      pero los errores están fuertemente concentrados en el stage de
+      carga sostenida (88.6 % de los fallos), lo que indica que el
+      sistema no mantiene estabilidad bajo carga prolongada.
+
+  H2. El p(95) del tiempo de respuesta (1.57 s) supera el límite de
+      1.5 s establecido, afectando al 5 % de los usuarios. El tiempo
+      máximo de 29.93 s revela timeouts o bloqueos severos.
+
+  H3. El tiempo de espera del servidor (TTFB promedio 861 ms) es el
+      componente dominante de la latencia, indicando procesamiento
+      lento en el backend o base de datos.
+
+  H4. Se observó una caída crítica de rendimiento durante ~14 minutos
+      que afectó la disponibilidad del servicio de forma significativa.
+
+  H5. El throughput alcanzado (73.18 TPS) supera ampliamente el objetivo
+      de 20 TPS, lo que indica capacidad de proceso suficiente cuando el
+      sistema opera sin perturbaciones.
+
+
+6. CONCLUSIONES
+---------------
+  C1. El servicio NO cumple plenamente con los criterios de aceptación:
+      aunque supera el objetivo de TPS y mantiene la tasa de error dentro
+      del límite, el p(95) de tiempo de respuesta excede el umbral y se
+      registró una degradación severa durante la prueba.
+
+  C2. El punto crítico de fallo es el Stage 2 (carga sostenida), donde
+      se concentran los errores y se produce la degradación de rendimiento,
+      lo que sugiere que el sistema no está preparado para carga prolongada.
+
+  C3. La recuperación espontánea del servicio (sin intervención) indica
+      la presencia de mecanismos de autoprotección, pero estos producen
+      períodos de indisponibilidad que son inaceptables en producción.
+
+
+7. RECOMENDACIONES
+------------------
+  R1. INMEDIATA – Investigar la causa del incidente entre 01:48 y 02:02:
+      revisar logs del servidor, métricas de CPU/memoria/conexiones y
+      configuración de rate-limiting durante ese período.
+
+  R2. Implementar caché de tokens de autenticación (TTL corto) para
+      reducir el TTFB promedio de 861 ms y el p(95).
+
+  R3. Configurar circuit breakers con tiempos de timeout no superiores
+      a 5 s para evitar acumulación de VUs bloqueadas esperando 30 s.
+
+  R4. Ampliar el dataset CSV con más usuarios variados para evitar que
+      el servidor identifique y limite patrones repetitivos de login.
+
+  R5. Agregar un stage de estrés progresivo (30, 50, 75 TPS) en futuras
+      pruebas para identificar el punto exacto de ruptura del sistema.
+
+  R6. Establecer alertas en el dashboard cuando el p(90) supere 1 000 ms
+      como señal temprana de degradación, antes de alcanzar el p(95).
+
+  R7. Revisar si el servidor está configurado con connection pooling
+      adecuado; el tiempo de envío elevado (avg 31 ms) sugiere que las
+      conexiones no están siendo reutilizadas eficientemente.
+
+
+================================================================
+  Elaborado por: Anthony Triguero
+  Fecha        : 2025-04-24
+  Herramienta  : K6 Performance Testing
+================================================================

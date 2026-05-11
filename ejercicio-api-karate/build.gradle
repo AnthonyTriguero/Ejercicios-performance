@@ -1,0 +1,31 @@
+plugins {
+    id 'java'
+}
+
+group = 'com.challenge.api'
+version = '1.0.0'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testImplementation 'com.intuit.karate:karate-junit5:1.4.0'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.9.3'
+    testImplementation 'net.masterthought:cucumber-reporting:5.7.5'
+}
+
+test {
+    useJUnitPlatform()
+    systemProperty 'karate.options', System.properties.getProperty('karate.options', '')
+    systemProperty 'karate.env', System.properties.getProperty('karate.env', 'dev')
+    outputs.upToDateWhen { false }
+    testLogging {
+        events 'passed', 'failed', 'skipped'
+    }
+}
